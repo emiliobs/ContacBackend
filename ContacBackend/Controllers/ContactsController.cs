@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Web;
 using System.Web.Mvc;
+using System.Web.Razor.Tokenizer;
 using ContacBackend.Class;
 using ContacBackend.Models;
 
@@ -13,7 +14,11 @@ namespace ContacBackend.Controllers
 {
     public class ContactsController : Controller
     {
-        private ContactContect db = new ContactContect();
+        #region Atributtes
+        private ContactContect db = new ContactContect(); 
+        #endregion
+
+        #region ActionResult
 
         // GET: Contacts
         public ActionResult Index()
@@ -53,7 +58,7 @@ namespace ContacBackend.Controllers
             {
 
                 var picture = string.Empty;
-                var folder = "~/Content";
+                var folder = "~/Content/Images";
 
                 if (view.ImageFile != null)
                 {
@@ -73,20 +78,7 @@ namespace ContacBackend.Controllers
             return View(view);
         }
 
-        private Contact ToContact(ContactView view)
-        {
-               return  new Contact()
-               {
-                   
-                   ContactId = view.ContactId,
-                   EmailAddress = view.EmailAddress,
-                   FirstName = view.FirstName,
-                   Image = view.Image,
-                   LastName = view.LastName,
-                   PhoneNumber = view.PhoneNumber,
-                   
-               };
-        }
+      
 
         // GET: Contacts/Edit/5
         public ActionResult Edit(int? id)
@@ -95,28 +87,49 @@ namespace ContacBackend.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
+
             Contact contact = db.Contacts.Find(id);
+
             if (contact == null)
             {
                 return HttpNotFound();
             }
-            return View(contact);
-        }
 
+            var view = ToView(contact);
+
+            return View(view);
+        }
+                                   
         // POST: Contacts/Edit/5
         // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
         // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit([Bind(Include = "ContactId,FirstName,LastName,Image,EmailAddress,PhoneNumber")] Contact contact)
+        public ActionResult Edit(ContactView contactView)
         {
             if (ModelState.IsValid)
             {
+
+                var picture = contactView.Image;
+                var folder = "~/Content/Images";
+
+                if (contactView.ImageFile != null)
+                {
+                    picture = FileHelper.UploadPhoto(contactView.ImageFile, folder);
+                    picture = $"{folder}/{picture}";
+                }
+
+                var contact = ToContact(contactView);
+
+                contact.Image = picture;
+
                 db.Entry(contact).State = EntityState.Modified;
+
                 db.SaveChanges();
+
                 return RedirectToAction("Index");
             }
-            return View(contact);
+            return View(contactView);
         }
 
         // GET: Contacts/Delete/5
@@ -145,6 +158,10 @@ namespace ContacBackend.Controllers
             return RedirectToAction("Index");
         }
 
+        #endregion
+
+        #region Methods
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -153,5 +170,37 @@ namespace ContacBackend.Controllers
             }
             base.Dispose(disposing);
         }
+
+        private Contact ToContact(ContactView view)
+        {
+            return new Contact()
+            {
+
+                ContactId = view.ContactId,
+                EmailAddress = view.EmailAddress,
+                FirstName = view.FirstName,
+                Image = view.Image,
+                LastName = view.LastName,
+                PhoneNumber = view.PhoneNumber,
+
+            };
+
+        }
+
+        private ContactView ToView(Contact contact)
+        {
+            return new ContactView()
+            {
+                Image = contact.Image,
+                ContactId = contact.ContactId,
+                EmailAddress = contact.EmailAddress,
+                FirstName = contact.FirstName,
+                LastName = contact.LastName,
+                PhoneNumber = contact.PhoneNumber,
+
+            };
+        }
+
+        #endregion
     }
 }
