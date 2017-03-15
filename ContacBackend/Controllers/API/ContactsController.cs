@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Entity;
 using System.Data.Entity.Infrastructure;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Description;
+using ContacBackend.Class;
 using ContacBackend.Models;
 
 namespace ContacBackend.Controllers.API
@@ -38,17 +40,35 @@ namespace ContacBackend.Controllers.API
 
         // PUT: api/Contacts/5
         [ResponseType(typeof(void))]
-        public async Task<IHttpActionResult> PutContact(int id, Contact contact)
+        public async Task<IHttpActionResult> PutContact(int id, ContactRequest request)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            if (id != contact.ContactId)
+            if (id != request.ContactId)
             {
                 return BadRequest();
             }
+
+            if (request.ImageArray != null && request.ImageArray.Length > 0)
+            {
+               var stream = new MemoryStream(request.ImageArray);
+                var guid = Guid.NewGuid().ToString();
+                var file = $"{guid}.jpg";
+                var folder = "~/Content/Images";
+                var fullPath = $"{folder}{file}";
+                var response = FileHelper.UploadPhoto(stream, folder, file);
+
+                if (response)
+                {
+                    request.Image = fullPath;
+                }
+            
+            }
+
+            var contact = ToContact(request);
 
             db.Entry(contact).State = EntityState.Modified;
 
@@ -71,17 +91,58 @@ namespace ContacBackend.Controllers.API
             return StatusCode(HttpStatusCode.NoContent);
         }
 
+        private Contact  ToContact(ContactRequest request)
+        {
+           return  new Contact()
+            {
+                Image = request.Image,
+                ContactId = request.ContactId,
+                EmailAddress = request.EmailAddress,
+                PhoneNumber = request.PhoneNumber,
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                
+            };
+        }
+
         // POST: api/Contacts
         [ResponseType(typeof(Contact))]
-        public async Task<IHttpActionResult> PostContact(Contact contact)
+        public async Task<IHttpActionResult> PostContact(ContactRequest request)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
+            if (request.ImageArray != null && request.ImageArray.Length > 0)
+            {
+                var stream = new MemoryStream(request.ImageArray);
+                var guid = Guid.NewGuid().ToString();
+                var file = $"{guid}.jpg";
+                var folder = "~/Content/Images";
+                var fullPath = $"{folder}{file}";
+                var response = FileHelper.UploadPhoto(stream, folder, file);
+
+                if (response)
+                {
+                    request.Image = fullPath;
+                }
+
+            }
+
+            var contact = ToContact(request);
+
             db.Contacts.Add(contact);
-            await db.SaveChangesAsync();
+
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
 
             return CreatedAtRoute("DefaultApi", new { id = contact.ContactId }, contact);
         }
